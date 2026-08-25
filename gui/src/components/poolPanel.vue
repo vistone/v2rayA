@@ -256,12 +256,14 @@ export default {
       this.loadCandidates().then(() => {
         const selected = {};
         (pool ? pool.members : []).forEach((m) => {
-          selected[whichKey(m.which)] = m.agentURL;
+          selected[whichKey(m.which)] = { agentURL: m.agentURL, agentToken: m.agentToken };
         });
         this.candidates.forEach((n) => {
-          if (selected[whichKey(n.which)] !== undefined) {
+          const s = selected[whichKey(n.which)];
+          if (s !== undefined) {
             n.selected = true;
-            n.agentURL = selected[whichKey(n.which)];
+            n.agentURL = s.agentURL;
+            n.agentToken = s.agentToken;
           }
         });
       });

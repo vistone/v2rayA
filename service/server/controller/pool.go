@@ -14,6 +14,7 @@ import (
 type memberStateResp struct {
 	Which      configure.Which   `json:"which"`
 	AgentURL   string            `json:"agentURL"`
+	AgentToken string            `json:"agentToken"`
 	Enabled    bool              `json:"enabled"`
 	Reachable  bool              `json:"reachable"`
 	Err        string            `json:"err,omitempty"`
@@ -42,6 +43,7 @@ func poolToResp(st *pool.PoolState) poolResp {
 		resp.Members = append(resp.Members, memberStateResp{
 			Which:      ms.Member.Which,
 			AgentURL:   ms.Member.AgentURL,
+			AgentToken: ms.Member.AgentToken,
 			Enabled:    ms.Member.Enabled,
 			Reachable:  ms.Reachable,
 			Err:        ms.Err,
@@ -145,6 +147,20 @@ func PutPool(ctx *gin.Context) {
 	if err := configure.ValidatePool(&data); err != nil {
 		common.ResponseError(ctx, logError(err))
 		return
+	}
+	// 保护：未提供新 token（前端留空）时保留旧成员的 token，避免误清空
+	if existing, err := configure.GetPool(name); err == nil {
+		for i := range data.Members {
+			if data.Members[i].AgentToken != "" {
+				continue
+			}
+			for j := range existing.Members {
+				if existing.Members[j].Which.EqualTo(data.Members[i].Which) {
+					data.Members[i].AgentToken = existing.Members[j].AgentToken
+					break
+				}
+			}
+		}
 	}
 	if err := configure.SetPool(&data); err != nil {
 		common.ResponseError(ctx, logError(err))
