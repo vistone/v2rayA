@@ -336,7 +336,8 @@ func getConnectedServerObjs() (serverObjs []serverObj.ServerObj, serverInfos []s
 	for _, w := range pool.ActiveMembers() {
 		sr, err := w.LocateServerRaw()
 		if err != nil {
-			return nil, nil, err
+			log.Warn("pool: skip unresolvable member %v: %v", w, err)
+			continue
 		}
 		serverInfos = append(serverInfos, serverInfo{
 			Info:         sr.ServerObj,

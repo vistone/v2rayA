@@ -217,6 +217,17 @@ func (st *PoolState) enabledMembers() []*PoolMemberState {
 	return res
 }
 
+// activeMemberIndexes 返回 enabled 成员中 GateActive 的下标（按 enabledMembers 顺序）。
+func (st *PoolState) activeMemberIndexes() []int {
+	var idx []int
+	for i, ms := range st.enabledMembers() {
+		if ms.Gate == GateActive {
+			idx = append(idx, i)
+		}
+	}
+	return idx
+}
+
 func (st *PoolState) allExcluded() bool {
 	enabled := st.enabledMembers()
 	if len(enabled) == 0 {
@@ -230,16 +241,15 @@ func (st *PoolState) allExcluded() bool {
 	return true
 }
 
-// evaluateGateLocked 在持锁状态下评估所有成员的硬门槛，返回成员集合是否变化。
+// evaluateGateLocked 在持锁状态下评估所有成员的硬门槛，返回有效成员集合是否实际变化。
+// 采用"评估前后对比"的净变化检测：fail-open 每轮"摘除→放回同一成员"不会误报变化，
+// 避免配置风暴（core 每轮重启）。
 func (e *Engine) evaluateGateLocked(st *PoolState) bool {
 	settings := st.Pool.ValidSettings()
-	changed := false
+	before := st.activeMemberIndexes()
 	for _, ms := range st.enabledMembers() {
-		next, didChange := Evaluate(ms.Gate, memberEval(ms), settings)
-		if didChange {
-			ms.Gate = next
-			changed = true
-		}
+		next, _ := Evaluate(ms.Gate, memberEval(ms), settings)
+		ms.Gate = next
 	}
 	if settings.FailOpen != nil && *settings.FailOpen && st.allExcluded() {
 		enabled := st.enabledMembers()
@@ -248,14 +258,12 @@ func (e *Engine) evaluateGateLocked(st *PoolState) bool {
 			evals = append(evals, memberEval(ms))
 		}
 		if idx := SelectFailOpenMember(evals); idx >= 0 {
-			if enabled[idx].Gate != GateActive {
-				enabled[idx].Gate = GateActive
-				changed = true
-				log.Warn("pool %s: all members excluded by traffic gate; fail-open re-added member %d", st.Pool.Name, idx)
-			}
+			enabled[idx].Gate = GateActive
+			log.Warn("pool %s: all members excluded by traffic gate; fail-open re-added member %d", st.Pool.Name, idx)
 		}
 	}
-	return changed
+	after := st.activeMemberIndexes()
+	return !reflect.DeepEqual(before, after)
 }
 
 // ---- 包级单例 ----

@@ -194,3 +194,25 @@ func TestEngineSyncStopsRemovedPool(t *testing.T) {
 		t.Fatal("poolA should be removed after Sync(nil)")
 	}
 }
+
+func TestEngineNoOscillationWithFailOpen(t *testing.T) {
+	// 全部成员超门槛 + fail-open：净变化检测必须保证 onChange 只触发一次（首次），
+	// 不允许每轮"摘除→放回"反复触发（配置风暴）。
+	// 注：pollLoop 将 <1s 的间隔钳制为 30s，故用精确的 1s 以覆盖多个轮询周期。
+	srv := newStatusServer(t, 95, false)
+	defer srv.Close()
+
+	var changed int32
+	e := NewEngine(func() { atomic.AddInt32(&changed, 1) })
+	p := testPool("poolA", "", []configure.PoolMember{
+		{Which: configure.Which{TYPE: configure.ServerType, ID: 1}, AgentURL: srv.URL, AgentToken: "tok", Enabled: true},
+		{Which: configure.Which{TYPE: configure.ServerType, ID: 2}, AgentURL: srv.URL, AgentToken: "tok", Enabled: true},
+	}, configure.PoolSettings{TrafficGatePct: 90, HysteresisPct: 5, PollInterval: "1s"})
+	e.Start([]configure.Pool{p})
+	defer e.Stop()
+
+	time.Sleep(2500 * time.Millisecond) // 覆盖多个轮询周期（1s 下限）
+	if got := atomic.LoadInt32(&changed); got != 1 {
+		t.Fatalf("fail-open oscillation: onChange called %d times, want 1", got)
+	}
+}

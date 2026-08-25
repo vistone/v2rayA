@@ -10,14 +10,25 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	dir, _ := os.MkdirTemp("", "v2raya-test")
-	defer os.RemoveAll(dir)
+	// gonfig 会解析 os.Args：清洗掉 go test 传入的 -test.* 参数，避免 log.Fatal
+	origArgs := os.Args
+	os.Args = os.Args[:1]
+	dir, err := os.MkdirTemp("", "v2raya-test")
+	if err != nil {
+		panic(err)
+	}
 	conf.SetConfig(conf.Params{Config: dir})
 	if err := db.Open(); err != nil {
 		panic(err)
 	}
 	_ = InitDefaultOutbound()
-	os.Exit(m.Run())
+	// gonfig 已在上面消费完清洗后的参数；恢复原参数，让 testing 框架的 flag.Parse
+	// （M.Run 内部）能识别 -test.run/-test.v 等，保持正常过滤与冗长输出。
+	os.Args = origArgs
+	code := m.Run()
+	_ = db.Close()
+	_ = os.RemoveAll(dir)
+	os.Exit(code)
 }
 
 type ServerObjStub struct{}
@@ -88,6 +99,19 @@ func TestValidatePool(t *testing.T) {
 	}
 	if err := ValidatePool(p); err == nil {
 		t.Fatal("ValidatePool(bad interval) should fail")
+	}
+	// Outbound 保留名
+	if err := ValidatePool(&Pool{Name: "p1", Outbound: "direct"}); err == nil {
+		t.Fatal("ValidatePool(outbound=direct) should fail")
+	}
+	// hys >= gate
+	p = &Pool{
+		Name:     "p1",
+		Members:  []PoolMember{{Which: Which{TYPE: ServerType, ID: 1}, AgentURL: "http://127.0.0.1:19528"}},
+		Settings: PoolSettings{TrafficGatePct: 90, HysteresisPct: 95},
+	}
+	if err := ValidatePool(p); err == nil {
+		t.Fatal("ValidatePool(hys >= gate) should fail")
 	}
 }
 

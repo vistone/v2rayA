@@ -84,11 +84,27 @@ func ValidatePool(p *Pool) error {
 	if p.Name == "proxy" || p.Name == "direct" || p.Name == "block" {
 		return fmt.Errorf("pool name %q is reserved", p.Name)
 	}
+	if p.Outbound == "proxy" || p.Outbound == "direct" || p.Outbound == "block" {
+		return fmt.Errorf("pool outbound name %q is reserved", p.Outbound)
+	}
 	outbound := p.OutboundName()
 	for _, o := range GetOutbounds() {
 		if o == outbound {
 			return fmt.Errorf("outbound name %q is already used by an outbound group", outbound)
 		}
+	}
+	s := p.ValidSettings()
+	if s.TrafficGatePct <= 0 || s.TrafficGatePct >= 100 {
+		return fmt.Errorf("trafficGatePct must be in (0, 100), got %v", s.TrafficGatePct)
+	}
+	if s.HysteresisPct < 0 || s.HysteresisPct >= 100 {
+		return fmt.Errorf("hysteresisPct must be in [0, 100), got %v", s.HysteresisPct)
+	}
+	if s.HysteresisPct >= s.TrafficGatePct {
+		return fmt.Errorf("hysteresisPct (%v) must be less than trafficGatePct (%v)", s.HysteresisPct, s.TrafficGatePct)
+	}
+	if _, err := time.ParseDuration(s.PollInterval); err != nil {
+		return fmt.Errorf("pollInterval: %v", err)
 	}
 	if len(p.Members) == 0 {
 		return fmt.Errorf("pool needs at least one member")
@@ -111,16 +127,6 @@ func ValidatePool(p *Pool) error {
 			return fmt.Errorf("member %d: duplicate node", i)
 		}
 		seen[key] = true
-	}
-	s := p.ValidSettings()
-	if s.TrafficGatePct <= 0 || s.TrafficGatePct >= 100 {
-		return fmt.Errorf("trafficGatePct must be in (0, 100), got %v", s.TrafficGatePct)
-	}
-	if s.HysteresisPct < 0 || s.HysteresisPct >= 100 {
-		return fmt.Errorf("hysteresisPct must be in [0, 100), got %v", s.HysteresisPct)
-	}
-	if _, err := time.ParseDuration(s.PollInterval); err != nil {
-		return fmt.Errorf("pollInterval: %v", err)
 	}
 	return nil
 }
