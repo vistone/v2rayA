@@ -10,6 +10,7 @@ import (
 	"github.com/v2rayA/v2rayA/db/configure"
 	"github.com/v2rayA/v2rayA/kernel/ipforward"
 	"github.com/v2rayA/v2rayA/kernel/v2ray"
+	"github.com/v2rayA/v2rayA/pkg/pool"
 	"github.com/v2rayA/v2rayA/pkg/util/log"
 	"github.com/v2rayA/v2rayA/server/router"
 	"github.com/v2rayA/v2rayA/server/service"
@@ -56,6 +57,15 @@ func run() (err error) {
 			log.Error("failed to start v2ray-core: %v", err)
 		}
 	}
+	// 启动节点池引擎：轮询各 VPS agent，流量硬门槛驱动 balancer 成员进出池。
+	pool.SetOnMembershipChanged(func() {
+		if v2ray.ProcessManager.Running() {
+			if err := v2ray.UpdateV2RayConfig(); err != nil {
+				log.Warn("pool membership changed but config update failed: %v", err)
+			}
+		}
+	})
+	pool.Start()
 	//w := configure.GetConnectedServers()
 	//log.Println(err, ", which:", w)
 	//_ = configure.ClearConnected()
@@ -75,6 +85,7 @@ func run() (err error) {
 		log.Fatal("run: %v", err)
 	}
 	fmt.Println("Quitting...")
+	pool.Stop()
 	v2ray.ProcessManager.CheckAndStopTransparentProxy(nil)
 	v2ray.ProcessManager.Stop(false)
 	_ = db.Close()
