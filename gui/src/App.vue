@@ -30,6 +30,10 @@
         <!--          <i class="iconfont icon-cloud" style="font-size: 1.4em"></i>-->
         <!--          节点-->
         <!--        </b-navbar-item>-->
+        <b-navbar-item tag="a" @click.native="handleClickPool">
+          <i class="iconfont icon-cloud" style="font-size: 1.25em"></i>
+          {{ $t("common.pool") }}
+        </b-navbar-item>
         <b-navbar-item tag="a" @click.native="handleClickSetting">
           <i class="iconfont icon-setting" style="font-size: 1.25em"></i>
           {{ $t("common.setting") }}
@@ -91,6 +95,7 @@
 <script>
 import ModalSetting from "@/components/modalSetting";
 import node from "@/node";
+import PoolPanel from "@/components/poolPanel";
 import { Base64 } from "js-base64";
 import ModalCustomAddress from "@/components/modalCustomPorts";
 import ModalOutboundSetting from "@/components/modalOutboundSetting";
@@ -103,7 +108,7 @@ import ModalLogin from "@/components/modalLogin";
 import { ModalProgrammatic } from "buefy";
 
 export default {
-  components: { ModalCustomAddress, node, OutboundGroupPanel, ModalLogin },
+  components: { ModalCustomAddress, node, OutboundGroupPanel, ModalLogin, PoolPanel },
   data() {
     return {
       ws: null,
@@ -534,6 +539,15 @@ export default {
     },
     handleOnStatusMouseLeave() {
       this.coverStatusText = "";
+    },
+    handleClickPool() {
+      const that = this;
+      this.$buefy.modal.open({
+        parent: this,
+        component: PoolPanel,
+        hasModalCard: true,
+        canCancel: true,
+      });
     },
     handleClickSetting() {
       const that = this;
