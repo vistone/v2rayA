@@ -305,6 +305,12 @@ func Run() error {
 		auth.GET("logger", controller.GetLogger)
 		auth.GET("domainsExcluded", controller.GetDomainsExcluded)
 		auth.GET("tproxyWhiteIpGroups", controller.GetTproxyWhiteIpGroups)
+		auth.GET("pools", controller.GetPools)
+		auth.POST("pools", controller.PostPool)
+		auth.PUT("pools/:name", controller.PutPool)
+		auth.DELETE("pools/:name", controller.DeletePool)
+		auth.POST("pools/:name/control", controller.PostPoolControl)
+		auth.GET("pools/:name/status", controller.GetPoolStatus)
 		auth.PUT("domainsExcluded", controller.PutDomainsExcluded)
 		auth.PUT("tproxyWhiteIpGroups", controller.PutTproxyWhiteIpGroups)
 		auth.GET("networkInterfaces", controller.GetNetworkInterfaces)
@@ -330,7 +336,6 @@ func Run() error {
 			return fmt.Errorf("router: failed to listen on %v: %w", addr, err)
 		}
 	}
-
 
 	srv := &http.Server{Handler: engine}
 	httpServerMu.Lock()
