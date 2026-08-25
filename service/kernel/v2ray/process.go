@@ -22,6 +22,7 @@ import (
 	"github.com/v2rayA/v2rayA/kernel/serverObj"
 	"github.com/v2rayA/v2rayA/kernel/v2ray/asset"
 	"github.com/v2rayA/v2rayA/kernel/v2ray/where"
+	pool "github.com/v2rayA/v2rayA/pkg/pool"
 	"github.com/v2rayA/v2rayA/pkg/util/log"
 )
 
@@ -313,23 +314,38 @@ func findAvailablePluginPorts(vms []serverObj.ServerObj) (pluginPortMap map[int]
 	return pluginPortMap, nil
 }
 
-func getConnectedServerObjs() ([]serverObj.ServerObj, []serverInfo, error) {
+func getConnectedServerObjs() (serverObjs []serverObj.ServerObj, serverInfos []serverInfo, err error) {
 	css := configure.GetConnectedServers()
-	if css.Len() == 0 { //no connected server. stop v2ray-core.
-		return nil, nil, nil
+	serverInfos = make([]serverInfo, 0)
+	serverObjs = make([]serverObj.ServerObj, 0)
+	if css != nil {
+		for _, cs := range css.Get() {
+			sr, err := cs.LocateServerRaw()
+			if err != nil {
+				return nil, nil, err
+			}
+			serverInfos = append(serverInfos, serverInfo{
+				Info:         sr.ServerObj,
+				OutboundName: cs.Outbound,
+			})
+			serverObjs = append(serverObjs, sr.ServerObj)
+		}
 	}
-	serverInfos := make([]serverInfo, 0, css.Len())
-	serverObjs := make([]serverObj.ServerObj, 0, css.Len())
-	for _, cs := range css.Get() {
-		sr, err := cs.LocateServerRaw()
+	// 追加节点池的有效成员（流量硬门槛未摘除的），使 balancer 生成复用现有路径。
+	// 池成员不写入 configure.Whiches；Which.Outbound 已由引擎填充为池出站名。
+	for _, w := range pool.ActiveMembers() {
+		sr, err := w.LocateServerRaw()
 		if err != nil {
 			return nil, nil, err
 		}
 		serverInfos = append(serverInfos, serverInfo{
 			Info:         sr.ServerObj,
-			OutboundName: cs.Outbound,
+			OutboundName: w.Outbound,
 		})
 		serverObjs = append(serverObjs, sr.ServerObj)
+	}
+	if len(serverObjs) == 0 { //no connected server. stop v2ray-core.
+		return nil, nil, nil
 	}
 	return serverObjs, serverInfos, nil
 }
