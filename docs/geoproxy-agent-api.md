@@ -47,3 +47,12 @@
 | `set-check-interval` | `seconds`（≥60） | 修改 KiwiVM 检查间隔 |
 
 响应 200 表示已接受；错误时返回 4xx/5xx + JSON `{"error": "..."}`。
+
+## 客户端（v2rayA）验证路径
+
+1. 在 v2rayA 中导入/添加 2 台以上 VPS 节点（TUIC 等）
+2. 设置 → 节点池 → 新建：勾选节点，填 Agent 地址/Token，门槛默认 90%
+3. mock agent 返回 `usedPct=95` → 观察该成员"已摘除"，balancer 只含其余成员
+4. mock agent 返回 `usedPct=50` → 观察成员自动"在池"
+5. 点击"熔断/恢复"→ agent 收到 `POST /v1/control`，UI 反馈成功/失败
+6. 关闭 agent → 成员"离线"，但不被摘除（fail-open）
