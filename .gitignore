@@ -64,3 +64,6 @@ plans
 gui/package-lock.json
 # SDD scratch workspace
 .superpowers/
+
+# Local build outputs
+/bin/
