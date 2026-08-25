@@ -62,3 +62,5 @@ plans
 
 # npm lockfile (this project uses yarn; package-lock.json is accidental)
 gui/package-lock.json
+# SDD scratch workspace
+.superpowers/
