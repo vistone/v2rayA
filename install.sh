@@ -14,8 +14,8 @@
 #   V2RAYA_BASE_URL  下载源前缀（国内可配 GitHub 加速镜像），默认官方地址
 #   V2RAYA_NO_START  置 1 时只安装不启动服务
 #
-# 行为：自动获取版本号/架构/下载地址/校验和，无需人工干预；重复执行即为升级，
-# 保留 /etc/v2raya 配置与节点数据。
+# 行为：自动获取版本号/架构/下载地址/校验和，并预装 geoip/geosite 数据文件，
+# 无需人工干预；重复执行即为升级，保留 /etc/v2raya 配置与节点数据。
 #
 set -euo pipefail
 
@@ -140,6 +140,51 @@ install_binaries() {
   install -d -m 0750 "$LOG_DIR"
 }
 
+# 下载并校验一个 dat 数据文件；sum_url 为空则跳过 sha256 校验
+# （Loyalsoldier 的 geosite 不发布独立校验文件）。
+download_dat() {
+  local url="$1" out="$2" sum_url="$3" expected sha
+  msg "下载数据文件 $(basename "$out") ..."
+  if ! curl -fL --connect-timeout 15 --retry 3 --retry-delay 2 -o "${TMP_DIR}/dat.tmp" "$url"; then
+    warn "下载失败: $url"
+    return 1
+  fi
+  if [ -n "$sum_url" ] && curl -fsL --connect-timeout 15 --retry 3 -o "${TMP_DIR}/dat.sha256" "$sum_url"; then
+    expected="$(awk '{print $1}' "${TMP_DIR}/dat.sha256")"
+    sha="$(sha256sum "${TMP_DIR}/dat.tmp" | awk '{print $1}')"
+    if [ "$sha" != "$expected" ]; then
+      warn "sha256 校验失败: $(basename "$out")"
+      return 1
+    fi
+  fi
+  install -m 0644 "${TMP_DIR}/dat.tmp" "$out"
+  msg "已安装 $(basename "$out") ($(stat -c%s "$out" 2>/dev/null || echo '?') bytes)"
+}
+
+# 预装 v2ray-core 数据文件，避免首次启动时 GUI 提示
+# "Downloading missing geoip.dat and geosite.dat" 而无法直接使用。
+install_dat_assets() {
+  msg "预下载 v2ray-core 数据文件到 ${ASSET_DIR} ..."
+  install -d -m 0755 "$ASSET_DIR"
+  local fail=0
+  download_dat \
+    "https://github.com/v2fly/geoip/releases/latest/download/geoip.dat" \
+    "${ASSET_DIR}/geoip.dat" \
+    "https://github.com/v2fly/geoip/releases/latest/download/geoip.dat.sha256sum" || fail=1
+  download_dat \
+    "https://github.com/v2fly/domain-list-community/releases/latest/download/dlc.dat" \
+    "${ASSET_DIR}/geosite.dat" \
+    "https://github.com/v2fly/domain-list-community/releases/latest/download/dlc.dat.sha256sum" || fail=1
+  # GFWList（分流/PAC 模式需要；v2rayA 的 LoyalsoldierSite.dat 即 geosite 数据）
+  download_dat \
+    "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat" \
+    "${ASSET_DIR}/LoyalsoldierSite.dat" \
+    "" || fail=1
+  if [ "$fail" = "1" ]; then
+    warn "部分数据文件下载失败：首次启动时 v2rayA 会自动补齐（需能访问 GitHub）"
+  fi
+}
+
 write_default_env() {
   msg "写入 ${DEFAULT_FILE} ..."
   cat > "$DEFAULT_FILE" <<EOF
@@ -251,6 +296,7 @@ main() {
   download_verify "v2raya_core_${ARCH}_${VERSION}"
   stop_old_instance
   install_binaries
+  install_dat_assets
   write_default_env
   write_systemd_unit
   start_service
