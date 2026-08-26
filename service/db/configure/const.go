@@ -66,8 +66,10 @@ const (
 const (
 	DefaultProbeURL      = "https://www.gstatic.com/generate_204"
 	DefaultProbeInterval = "60s"
-	DefaultOutboundType  = "leastping"
-	DefaultOutboundName  = "proxy"
+	// 默认出站策略 = random（并行）：新增节点即自动分摊并发连接、叠加出口带宽，
+	// 无需手动切换；需要单连接最小时延时可显式改 leastping。
+	DefaultOutboundType = "random"
+	DefaultOutboundName = "proxy"
 
 	RoutingATemplate = `default: proxy
 # write your own rules below
