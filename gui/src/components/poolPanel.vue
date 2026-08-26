@@ -1,16 +1,20 @@
 <template>
-  <div class="pool-panel">
-    <div class="level">
-      <div class="level-left">
-        <b-button type="is-primary" size="is-small" icon-left="plus" @click="openEdit(null)">
-          {{ $t("pool.create") }}
-        </b-button>
-        <b-button size="is-small" icon-left="refresh" @click="load">{{ $t("pool.refresh") }}</b-button>
+  <div class="modal-card pool-panel" style="width: 1020px">
+    <header class="modal-card-head">
+      <p class="modal-card-title">{{ $t("common.pool") }}</p>
+    </header>
+    <section class="modal-card-body pool-panel__body">
+      <div class="level">
+        <div class="level-left">
+          <b-button type="is-primary" size="is-small" icon-left="plus" @click="openEdit(null)">
+            {{ $t("pool.create") }}
+          </b-button>
+          <b-button size="is-small" icon-left="refresh" @click="load">{{ $t("pool.refresh") }}</b-button>
+        </div>
+        <div class="level-right">
+          <span class="is-size-7 has-text-grey">{{ $t("pool.refreshHint") }}</span>
+        </div>
       </div>
-      <div class="level-right">
-        <span class="is-size-7 has-text-grey">{{ $t("pool.refreshHint") }}</span>
-      </div>
-    </div>
 
     <div v-if="!pools.length" class="pool-empty">
       <div class="pool-empty__icon">🌐</div>
@@ -93,6 +97,7 @@
         </tbody>
       </table>
     </div>
+    </section>
 
     <!-- 新建/编辑 -->
     <b-modal :active.sync="editActive" has-modal-card trap-focus :can-cancel="!saving">
@@ -390,9 +395,9 @@ export default {
 </script>
 
 <style scoped>
-.pool-panel {
-  width: 980px;
-  max-width: 96vw;
+.pool-panel__body {
+  max-height: 75vh;
+  overflow-y: auto;
 }
 .pool-empty {
   text-align: center;
