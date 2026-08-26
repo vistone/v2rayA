@@ -3,7 +3,11 @@
 set -ex
 CurrentDir="$(pwd)"
 
-if [ -d "$CurrentDir/.git" ]; then
+if [ -f "$CurrentDir/VERSION" ]; then
+  # 版本号遵循官方 v2rayA 惯例：VERSION 文件存 tag 名（vX.Y.Z），
+  # 嵌入二进制时去掉前缀 v（与官方 release workflow 的 sed 's/v//g' 一致）。
+  version="$(cat "$CurrentDir/VERSION" | sed 's/^v//')"
+elif [ -d "$CurrentDir/.git" ]; then
   date=$(git -C "$CurrentDir" log -1 --format="%cd" --date=short | sed s/-//g)
   count=$(git -C "$CurrentDir" rev-list --count HEAD)
   commit=$(git -C "$CurrentDir" rev-parse --short HEAD)
