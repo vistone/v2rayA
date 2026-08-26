@@ -106,30 +106,58 @@ resolve_version() {
   msg "最新版本: $VERSION"
 }
 
-# ---------- 下载与校验 ----------
-download_verify() {
-  local name="$1" url sum_url sha expected
-  url="${BASE_URL}/releases/download/v${VERSION}/${name}"
-  sum_url="${url}.sha256.txt"
-  msg "下载 ${name} ..."
-  if ! curl -fL --connect-timeout 15 --retry 3 -o "${TMP_DIR}/${name}" "$url"; then
+# ---------- 阶段一：下载全部组件并校验（任何失败即中止，不做任何安装） ----------
+download_one() {
+  local url="$1" out="$2" sum_url="$3" expected sha
+  msg "下载 ${out} ..."
+  if ! curl -fL --connect-timeout 15 --retry 3 --retry-delay 2 -o "${TMP_DIR}/${out}" "$url"; then
     die "下载失败: $url"
   fi
-  if ! curl -fsL --connect-timeout 15 --retry 3 -o "${TMP_DIR}/${name}.sha256.txt" "$sum_url"; then
-    warn "未获取到校验文件 ${name}.sha256.txt，跳过 sha256 校验"
-    return
+  if [ -n "$sum_url" ]; then
+    if curl -fsL --connect-timeout 15 --retry 3 -o "${TMP_DIR}/${out}.sha256" "$sum_url"; then
+      expected="$(awk '{print $1}' "${TMP_DIR}/${out}.sha256")"
+      sha="$(sha256sum "${TMP_DIR}/${out}" | awk '{print $1}')"
+      if [ "$sha" != "$expected" ]; then
+        die "sha256 校验失败: ${out}\n  期望: $expected\n  实际: $sha"
+      fi
+      msg "sha256 校验通过: ${out}"
+    else
+      warn "未获取到校验文件 ${out}.sha256，跳过 sha256 校验"
+    fi
   fi
-  expected="$(awk '{print $1}' "${TMP_DIR}/${name}.sha256.txt")"
-  sha="$(sha256sum "${TMP_DIR}/${name}" | awk '{print $1}')"
-  if [ "$sha" != "$expected" ]; then
-    die "sha256 校验失败: ${name}\n  期望: $expected\n  实际: $sha"
-  fi
-  msg "sha256 校验通过: $name"
 }
 
-# ---------- 安装 ----------
-install_binaries() {
-  msg "安装二进制到 ${LIB_DIR} ..."
+download_all() {
+  msg "阶段 1/2：下载全部组件（二进制 + 数据文件）并校验..."
+  # v2ray-core 数据文件
+  download_one \
+    "https://github.com/v2fly/geoip/releases/latest/download/geoip.dat" \
+    "geoip.dat" \
+    "https://github.com/v2fly/geoip/releases/latest/download/geoip.dat.sha256sum"
+  download_one \
+    "https://github.com/v2fly/domain-list-community/releases/latest/download/dlc.dat" \
+    "geosite.dat" \
+    "https://github.com/v2fly/domain-list-community/releases/latest/download/dlc.dat.sha256sum"
+  # GFWList（分流/PAC 模式需要；Loyalsoldier 不发布独立校验文件）
+  download_one \
+    "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat" \
+    "LoyalsoldierSite.dat" \
+    ""
+  # v2rayA 二进制
+  download_one \
+    "${BASE_URL}/releases/download/v${VERSION}/v2raya_${ARCH}_${VERSION}" \
+    "v2raya_${ARCH}_${VERSION}" \
+    "${BASE_URL}/releases/download/v${VERSION}/v2raya_${ARCH}_${VERSION}.sha256.txt"
+  download_one \
+    "${BASE_URL}/releases/download/v${VERSION}/v2raya_core_${ARCH}_${VERSION}" \
+    "v2raya_core_${ARCH}_${VERSION}" \
+    "${BASE_URL}/releases/download/v${VERSION}/v2raya_core_${ARCH}_${VERSION}.sha256.txt"
+  msg "全部组件下载并校验完成，开始安装"
+}
+
+# ---------- 阶段二：安装（仅在上一步全部下载成功后才执行） ----------
+install_all() {
+  msg "阶段 2/2：安装到系统..."
   install -d -m 0755 "$LIB_DIR"
   install -m 0755 "${TMP_DIR}/v2raya_${ARCH}_${VERSION}" "${LIB_DIR}/v2raya"
   install -m 0755 "${TMP_DIR}/v2raya_core_${ARCH}_${VERSION}" "${LIB_DIR}/v2raya_core"
@@ -138,51 +166,11 @@ install_binaries() {
   msg "创建运行目录: 配置 ${CONF_DIR} / 日志 ${LOG_DIR} / 资产 ${ASSET_DIR}"
   install -d -m 0755 "$CONF_DIR" "$ASSET_DIR"
   install -d -m 0750 "$LOG_DIR"
-}
-
-# 下载并校验一个 dat 数据文件；sum_url 为空则跳过 sha256 校验
-# （Loyalsoldier 的 geosite 不发布独立校验文件）。
-download_dat() {
-  local url="$1" out="$2" sum_url="$3" expected sha
-  msg "下载数据文件 $(basename "$out") ..."
-  if ! curl -fL --connect-timeout 15 --retry 3 --retry-delay 2 -o "${TMP_DIR}/dat.tmp" "$url"; then
-    warn "下载失败: $url"
-    return 1
-  fi
-  if [ -n "$sum_url" ] && curl -fsL --connect-timeout 15 --retry 3 -o "${TMP_DIR}/dat.sha256" "$sum_url"; then
-    expected="$(awk '{print $1}' "${TMP_DIR}/dat.sha256")"
-    sha="$(sha256sum "${TMP_DIR}/dat.tmp" | awk '{print $1}')"
-    if [ "$sha" != "$expected" ]; then
-      warn "sha256 校验失败: $(basename "$out")"
-      return 1
-    fi
-  fi
-  install -m 0644 "${TMP_DIR}/dat.tmp" "$out"
-  msg "已安装 $(basename "$out") ($(stat -c%s "$out" 2>/dev/null || echo '?') bytes)"
-}
-
-# 预装 v2ray-core 数据文件，避免首次启动时 GUI 提示
-# "Downloading missing geoip.dat and geosite.dat" 而无法直接使用。
-install_dat_assets() {
-  msg "预下载 v2ray-core 数据文件到 ${ASSET_DIR} ..."
-  install -d -m 0755 "$ASSET_DIR"
-  local fail=0
-  download_dat \
-    "https://github.com/v2fly/geoip/releases/latest/download/geoip.dat" \
-    "${ASSET_DIR}/geoip.dat" \
-    "https://github.com/v2fly/geoip/releases/latest/download/geoip.dat.sha256sum" || fail=1
-  download_dat \
-    "https://github.com/v2fly/domain-list-community/releases/latest/download/dlc.dat" \
-    "${ASSET_DIR}/geosite.dat" \
-    "https://github.com/v2fly/domain-list-community/releases/latest/download/dlc.dat.sha256sum" || fail=1
-  # GFWList（分流/PAC 模式需要；v2rayA 的 LoyalsoldierSite.dat 即 geosite 数据）
-  download_dat \
-    "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat" \
-    "${ASSET_DIR}/LoyalsoldierSite.dat" \
-    "" || fail=1
-  if [ "$fail" = "1" ]; then
-    warn "部分数据文件下载失败：首次启动时 v2rayA 会自动补齐（需能访问 GitHub）"
-  fi
+  # 预装数据文件，避免首次启动时 GUI 提示 "Downloading missing geoip.dat and geosite.dat"
+  install -m 0644 "${TMP_DIR}/geoip.dat" "${ASSET_DIR}/geoip.dat"
+  install -m 0644 "${TMP_DIR}/geosite.dat" "${ASSET_DIR}/geosite.dat"
+  install -m 0644 "${TMP_DIR}/LoyalsoldierSite.dat" "${ASSET_DIR}/LoyalsoldierSite.dat"
+  msg "数据文件已安装到 ${ASSET_DIR}（geoip.dat / geosite.dat / LoyalsoldierSite.dat）"
 }
 
 write_default_env() {
@@ -292,11 +280,9 @@ main() {
   resolve_version
   TMP_DIR="$(mktemp -d)"
   trap 'rm -rf "$TMP_DIR"' EXIT
-  download_verify "v2raya_${ARCH}_${VERSION}"
-  download_verify "v2raya_core_${ARCH}_${VERSION}"
+  download_all
   stop_old_instance
-  install_binaries
-  install_dat_assets
+  install_all
   write_default_env
   write_systemd_unit
   start_service
