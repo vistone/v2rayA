@@ -74,7 +74,7 @@ func (p *Pool) ValidSettings() PoolSettings {
 		s.FailOpen = &t
 	}
 	if s.Strategy == "" {
-		s.Strategy = string(Random)
+		s.Strategy = string(LeastPing)
 	}
 	return s
 }
