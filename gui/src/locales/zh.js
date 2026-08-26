@@ -500,6 +500,8 @@ export default {
     refresh: "刷新",
     refreshHint: "每 10 秒自动刷新",
     noPools: "暂无节点池，点击左上角新建",
+    noPoolsDesc: "新建后即可在此查看各 VPS 的流量、延迟与门槛状态",
+    latency: "延迟",
     name: "池名称",
     nameRequired: "请输入池名称",
     outbound: "出站名（可选）",

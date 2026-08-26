@@ -12,13 +12,20 @@
       </div>
     </div>
 
-    <div v-if="!pools.length" class="has-text-centered has-text-grey py-4">{{ $t("pool.noPools") }}</div>
+    <div v-if="!pools.length" class="pool-empty">
+      <div class="pool-empty__icon">🌐</div>
+      <div class="pool-empty__title">{{ $t("pool.noPools") }}</div>
+      <div class="pool-empty__desc">{{ $t("pool.noPoolsDesc") }}</div>
+      <b-button type="is-primary" icon-left="plus" @click="openEdit(null)">{{ $t("pool.create") }}</b-button>
+    </div>
 
-    <div v-for="p in pools" :key="p.name" class="box">
-      <div class="level is-mobile">
-        <div class="level-left">
-          <span class="has-text-weight-medium">{{ p.name }}</span>
+    <div v-for="p in pools" :key="p.name" class="box pool-card">
+      <div class="level is-mobile pool-card__header">
+        <div class="level-left pool-card__title">
+          <span class="has-text-weight-medium is-size-5">{{ p.name }}</span>
           <b-tag v-if="p.outbound && p.outbound !== p.name" size="is-small" class="ml-2">{{ p.outbound }}</b-tag>
+          <b-tag size="is-small" class="ml-2 is-light">{{ $t("pool.trafficGatePct") }} {{ p.settings.trafficGatePct }}%</b-tag>
+          <b-tag size="is-small" class="ml-1 is-light">{{ p.settings.pollInterval }}</b-tag>
         </div>
         <div class="level-right">
           <b-button size="is-small" icon-left="pencil" @click="openEdit(p)">{{ $t("pool.edit") }}</b-button>
@@ -31,15 +38,17 @@
         <thead>
           <tr>
             <th>{{ $t("pool.member") }}</th>
-            <th style="width: 26%">{{ $t("pool.traffic") }}</th>
-            <th>{{ $t("pool.gate") }}</th>
-            <th>{{ $t("pool.status") }}</th>
-            <th style="width: 22%">{{ $t("pool.actions") }}</th>
+            <th style="width: 12%">{{ $t("pool.latency") }}</th>
+            <th style="width: 24%">{{ $t("pool.traffic") }}</th>
+            <th style="width: 12%">{{ $t("pool.gate") }}</th>
+            <th style="width: 12%">{{ $t("pool.status") }}</th>
+            <th style="width: 18%">{{ $t("pool.actions") }}</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="m in p.members" :key="memberKey(m.which)">
             <td>{{ memberName(m.which) }}</td>
+            <td>{{ latencyText(m) }}</td>
             <td>
               <template v-if="m.status && m.status.traffic">
                 <progress
@@ -232,6 +241,17 @@ export default {
     pctText(v) {
       return `${(v || 0).toFixed(1)}%`;
     },
+    latencyText(m) {
+      if (
+        m.status &&
+        m.status.latency &&
+        typeof m.status.latency.ms === "number" &&
+        m.status.latency.ms > 0
+      ) {
+        return `${Math.round(m.status.latency.ms)} ms`;
+      }
+      return "-";
+    },
     bytesText(b) {
       const n = Number(b || 0);
       if (n >= 1 << 30) return (n / (1 << 30)).toFixed(2) + " GB";
@@ -370,6 +390,31 @@ export default {
 </script>
 
 <style scoped>
+.pool-panel {
+  width: 980px;
+  max-width: 96vw;
+}
+.pool-empty {
+  text-align: center;
+  padding: 48px 16px;
+  color: #7a7a7a;
+}
+.pool-empty__icon {
+  font-size: 40px;
+  margin-bottom: 8px;
+}
+.pool-empty__title {
+  font-size: 16px;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+.pool-empty__desc {
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+.pool-card__header {
+  margin-bottom: 8px;
+}
 .pool-member-line {
   display: flex;
   align-items: center;

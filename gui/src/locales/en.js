@@ -497,6 +497,8 @@ export default {
     refresh: "Refresh",
     refreshHint: "Auto-refresh every 10s",
     noPools: "No pools yet. Create one above.",
+    noPoolsDesc: "After creating a pool, per-VPS traffic, latency and gate status appear here.",
+    latency: "Latency",
     name: "Pool Name",
     nameRequired: "Pool name is required",
     outbound: "Outbound (optional)",

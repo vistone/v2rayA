@@ -547,6 +547,7 @@ export default {
         component: PoolPanel,
         hasModalCard: true,
         canCancel: true,
+        width: 1020,
       });
     },
     handleClickSetting() {
