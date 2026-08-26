@@ -30,6 +30,9 @@ type PoolSettings struct {
 	HysteresisPct  float64 `json:"hysteresisPct"`
 	ProbeURL       string  `json:"probeURL"`
 	FailOpen       *bool   `json:"failOpen"` // 指针：区分"未设置"（默认 true）与显式 false
+	// Strategy 池出站的 balancer 策略：leastping|random|roundrobin。
+	// 默认 random：并发连接分发到所有成员，每加一个节点就并行增大出口吞吐。
+	Strategy string `json:"strategy,omitempty"`
 }
 
 func DefaultPoolSettings() PoolSettings {
@@ -70,6 +73,9 @@ func (p *Pool) ValidSettings() PoolSettings {
 		t := true
 		s.FailOpen = &t
 	}
+	if s.Strategy == "" {
+		s.Strategy = string(Random)
+	}
 	return s
 }
 
@@ -105,6 +111,9 @@ func ValidatePool(p *Pool) error {
 	}
 	if _, err := time.ParseDuration(s.PollInterval); err != nil {
 		return fmt.Errorf("pollInterval: %v", err)
+	}
+	if !ObservatoryType(s.Strategy).Valid() {
+		return fmt.Errorf("strategy %q not supported (leastping|random|roundrobin)", s.Strategy)
 	}
 	if len(p.Members) == 0 {
 		return fmt.Errorf("pool needs at least one member")

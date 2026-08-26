@@ -135,9 +135,16 @@
               </b-field>
             </div>
           </div>
-          <b-field>
-            <b-checkbox v-model="form.failOpen">{{ $t("pool.failOpen") }}</b-checkbox>
-          </b-field>
+        		  <b-field :label="$t('pool.failOpen')">
+        			<b-checkbox v-model="form.failOpen">{{ $t("pool.failOpen") }}</b-checkbox>
+        		  </b-field>
+        		  <b-field :label="$t('pool.strategy')">
+        			<b-select v-model="form.strategy" expanded>
+        			  <option value="random">{{ $t("pool.strategyRandom") }}</option>
+        			  <option value="roundrobin">{{ $t("pool.strategyRoundRobin") }}</option>
+        			  <option value="leastping">{{ $t("pool.strategyLeastPing") }}</option>
+        			</b-select>
+        		  </b-field>
         </section>
         <footer class="modal-card-foot">
           <b-button type="is-primary" :loading="saving" @click="save">{{ $t("operations.save") }}</b-button>
@@ -168,7 +175,8 @@ export default {
         outbound: "",
         trafficGatePct: 90,
         pollInterval: "30s",
-        failOpen: true,
+        			failOpen: true,
+        			strategy: "random",
       },
       saving: false,
       busy: {}, // busyKey -> true
@@ -276,7 +284,8 @@ export default {
         outbound: pool ? pool.outbound || "" : "",
         trafficGatePct: pool ? pool.settings.trafficGatePct : 90,
         pollInterval: pool ? pool.settings.pollInterval : "30s",
-        failOpen: pool ? pool.settings.failOpen : true,
+        		failOpen: pool ? pool.settings.failOpen : true,
+        		strategy: pool ? pool.settings.strategy || "random" : "random",
       };
       this.loadCandidates().then(() => {
         const selected = {};
@@ -313,11 +322,12 @@ export default {
         name: this.form.name.trim(),
         outbound: this.form.outbound.trim(),
         members,
-        settings: {
-          trafficGatePct: Number(this.form.trafficGatePct),
-          pollInterval: this.form.pollInterval.trim() || "30s",
-          failOpen: !!this.form.failOpen,
-        },
+      		  settings: {
+      			trafficGatePct: Number(this.form.trafficGatePct),
+      			pollInterval: this.form.pollInterval.trim() || "30s",
+      			failOpen: !!this.form.failOpen,
+      			strategy: this.form.strategy || "random",
+      		  },
       };
     },
     async save() {

@@ -70,6 +70,39 @@ func TestPoolValidSettings(t *testing.T) {
 	}
 }
 
+func TestPoolSettingsStrategyDefaultsToRandom(t *testing.T) {
+	// 新增节点是为了并行增大出口流量：默认出站策略必须 random（并发分发），
+	// 而不是 leastping（一次只走一个节点，加节点反而可能降速）
+	p := &Pool{Name: "mypool"}
+	if s := p.ValidSettings(); s.Strategy != string(Random) {
+		t.Fatalf("default strategy = %q, want %q", s.Strategy, Random)
+	}
+	// 显式指定必须保留
+	p = &Pool{Name: "mypool", Settings: PoolSettings{Strategy: string(LeastPing)}}
+	if s := p.ValidSettings(); s.Strategy != string(LeastPing) {
+		t.Fatalf("explicit strategy = %q, want leastping", s.Strategy)
+	}
+	p = &Pool{Name: "mypool", Settings: PoolSettings{Strategy: string(RoundRobin)}}
+	if s := p.ValidSettings(); s.Strategy != string(RoundRobin) {
+		t.Fatalf("explicit strategy = %q, want roundrobin", s.Strategy)
+	}
+}
+
+func TestValidatePoolRejectsBadStrategy(t *testing.T) {
+	defer func() {
+		_ = RemoveServers([]int{0})
+	}()
+	_ = AppendServers([]*ServerRaw{{ServerObj: &ServerObjStub{}}})
+	p := &Pool{
+		Name:     "p1",
+		Members:  []PoolMember{{Which: Which{TYPE: ServerType, ID: 1}, AgentURL: "http://127.0.0.1:19528"}},
+		Settings: PoolSettings{Strategy: "bogus-strategy"},
+	}
+	if err := ValidatePool(p); err == nil {
+		t.Fatal("ValidatePool(bogus strategy) should fail")
+	}
+}
+
 func TestValidatePool(t *testing.T) {
 	if err := ValidatePool(nil); err == nil {
 		t.Fatal("ValidatePool(nil) should fail")

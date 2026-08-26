@@ -283,7 +283,7 @@ func ensureAllOutboundSettings() {
 		_ = configure.SetOutboundSetting(p.OutboundName(), configure.OutboundSetting{
 			ProbeURL:      s.ProbeURL,
 			ProbeInterval: s.PollInterval,
-			Type:          configure.LeastPing,
+			Type:          configure.ObservatoryType(s.Strategy),
 		})
 	}
 }
