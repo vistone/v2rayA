@@ -93,7 +93,10 @@ func (t *Template) SetAPI(serverData *ServerData) (port int, err error) {
 		if t.MultiObservatory != nil || t.Observatory != nil {
 			// v2raya_core supports ObservatoryService via the v2ray-compat gRPC path.
 			if t.Variant == where.V2rayaCore {
-
+				// core 必须注册 observatory 的 gRPC command 服务，否则
+				// ObservatoryProducer 拿不到 outbound 状态，GUI 不显示
+				// leastping 选中的节点与延迟。
+				services = append(services, "ObservatoryService")
 				var observatoryTags []string
 				for name, isGroup := range t.outNames() {
 					if isGroup {
