@@ -11,6 +11,35 @@ Thanks to the advantages of Web GUI, you can not only use it on your local compu
 Project：https://github.com/v2rayA/v2rayA
 
 
+## One-Click Install (Linux)
+
+The fastest way to deploy: a single command downloads the latest release,
+auto-detects the architecture, sha256-verifies **every** artifact
+(`v2raya`, `v2raya_core`, and the `geoip.dat` / `geosite.dat` /
+`LoyalsoldierSite.dat` data files), and only then installs and starts a
+systemd service — no manual steps, no partial installs.
+
+```bash
+curl -Ls https://raw.githubusercontent.com/vistone/v2rayA/main/install.sh | sudo bash
+```
+
+After installation, open `http://<your-ip>:2017` and create your account.
+
+- Binaries go to `/usr/local/lib/v2raya` (symlinks in `/usr/local/bin`);
+  config in `/etc/v2raya`, logs in `/var/log/v2raya`
+- Data files are pre-installed into `/usr/local/share/v2raya` so the proxy
+  works immediately on first launch
+- Re-running the command upgrades in place and keeps your configuration
+  and nodes
+- Uninstall: `sudo bash install.sh --uninstall` (keeps `/etc/v2raya`)
+
+| Environment variable | Purpose |
+|---|---|
+| `V2RAYA_VERSION` | Install a specific version, e.g. `V2RAYA_VERSION=2.4.16` |
+| `V2RAYA_BASE_URL` | Download mirror prefix (for restricted networks) |
+| `V2RAYA_NO_START` | Install only; do not start the service |
+
+
 ## Usage
 
 v2rayA mainly provides the following methods of installation:

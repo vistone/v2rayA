@@ -11,6 +11,28 @@ v2rayA 致力于提供最简单的操作，满足绝大部分需求。
 项目地址：https://github.com/v2rayA/v2rayA
 
 
+## 一键安装（Linux）
+
+最快的部署方式：一条命令自动完成「检测架构 → 下载最新 Release → sha256 校验 → 安装 → 注册 systemd 服务并启动」，无需任何人工干预，且不会出现半安装状态。
+
+```bash
+curl -Ls https://raw.githubusercontent.com/vistone/v2rayA/main/install.sh | sudo bash
+```
+
+安装完成后访问 `http://<你的IP>:2017` 创建账号即可使用。
+
+- 二进制安装到 `/usr/local/lib/v2raya`（`/usr/local/bin` 下建立软链接），配置在 `/etc/v2raya`，日志在 `/var/log/v2raya`
+- 数据文件（`geoip.dat`、`geosite.dat`、`LoyalsoldierSite.dat`）预装到 `/usr/local/share/v2raya`，首次启动即可直接翻墙
+- 重复执行即为升级，保留配置与节点数据
+- 卸载：`sudo bash install.sh --uninstall`（保留 `/etc/v2raya` 配置）
+
+| 环境变量 | 用途 |
+|---|---|
+| `V2RAYA_VERSION` | 安装指定版本，如 `V2RAYA_VERSION=2.4.16` |
+| `V2RAYA_BASE_URL` | 下载源前缀（受限网络可配 GitHub 加速镜像） |
+| `V2RAYA_NO_START` | 只安装不启动服务 |
+
+
 ## 使用方法
 
 v2rayA 主要提供了下述使用方法：
