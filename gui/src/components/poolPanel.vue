@@ -175,8 +175,8 @@ export default {
         outbound: "",
         trafficGatePct: 90,
         pollInterval: "30s",
-        			failOpen: true,
-        			strategy: "random",
+			failOpen: true,
+			strategy: "leastping",
       },
       saving: false,
       busy: {}, // busyKey -> true
@@ -284,8 +284,8 @@ export default {
         outbound: pool ? pool.outbound || "" : "",
         trafficGatePct: pool ? pool.settings.trafficGatePct : 90,
         pollInterval: pool ? pool.settings.pollInterval : "30s",
-        		failOpen: pool ? pool.settings.failOpen : true,
-        		strategy: pool ? pool.settings.strategy || "random" : "random",
+		failOpen: pool ? pool.settings.failOpen : true,
+		strategy: pool ? pool.settings.strategy || "leastping" : "leastping",
       };
       this.loadCandidates().then(() => {
         const selected = {};
@@ -326,7 +326,7 @@ export default {
       			trafficGatePct: Number(this.form.trafficGatePct),
       			pollInterval: this.form.pollInterval.trim() || "30s",
       			failOpen: !!this.form.failOpen,
-      			strategy: this.form.strategy || "random",
+      			strategy: this.form.strategy || "leastping",
       		  },
       };
     },

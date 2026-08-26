@@ -17,19 +17,19 @@
           expanded
         />
       </b-field>
-    	  <b-field label="Type" label-position="on-border">
-    		<b-select v-model="setting.type" expanded>
-    		  <option value="random">
-    			{{ $t("setting.options.randomParallel") }}
-    		  </option>
-    		  <option value="roundrobin">
-    			{{ $t("setting.options.roundRobinParallel") }}
-    		  </option>
-    		  <option value="leastping">
-    			{{ $t("setting.options.leastPing") }}
-    		  </option>
-    		</b-select>
-    	  </b-field>
+	  <b-field label="Type" label-position="on-border">
+		<b-select v-model="setting.type" expanded>
+		  <option value="leastping">
+			{{ $t("setting.options.leastPing") }}
+		  </option>
+		  <option value="random">
+			{{ $t("setting.options.randomParallel") }}
+		  </option>
+		  <option value="roundrobin">
+			{{ $t("setting.options.roundRobinParallel") }}
+		  </option>
+		</b-select>
+	  </b-field>
     </section>
     <footer class="modal-card-foot flex-end">
       <button class="button is-danger" type="button" @click="handleClickDelete">

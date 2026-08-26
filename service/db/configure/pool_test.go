@@ -70,17 +70,18 @@ func TestPoolValidSettings(t *testing.T) {
 	}
 }
 
-func TestPoolSettingsStrategyDefaultsToRandom(t *testing.T) {
-	// 新增节点是为了并行增大出口流量：默认出站策略必须 random（并发分发），
-	// 而不是 leastping（一次只走一个节点，加节点反而可能降速）
+func TestPoolSettingsStrategyDefaultsToLeastPing(t *testing.T) {
+	// 默认必须 leastping：单条连接可长连接复用（一次握手持续高速）。
+	// random/roundrobin 是连接级分发，新连接每次都要重新握手，
+	// 短连接场景反而拖慢速度；需要叠加带宽时由用户显式切换。
 	p := &Pool{Name: "mypool"}
-	if s := p.ValidSettings(); s.Strategy != string(Random) {
-		t.Fatalf("default strategy = %q, want %q", s.Strategy, Random)
+	if s := p.ValidSettings(); s.Strategy != string(LeastPing) {
+		t.Fatalf("default strategy = %q, want %q", s.Strategy, LeastPing)
 	}
 	// 显式指定必须保留
-	p = &Pool{Name: "mypool", Settings: PoolSettings{Strategy: string(LeastPing)}}
-	if s := p.ValidSettings(); s.Strategy != string(LeastPing) {
-		t.Fatalf("explicit strategy = %q, want leastping", s.Strategy)
+	p = &Pool{Name: "mypool", Settings: PoolSettings{Strategy: string(Random)}}
+	if s := p.ValidSettings(); s.Strategy != string(Random) {
+		t.Fatalf("explicit strategy = %q, want random", s.Strategy)
 	}
 	p = &Pool{Name: "mypool", Settings: PoolSettings{Strategy: string(RoundRobin)}}
 	if s := p.ValidSettings(); s.Strategy != string(RoundRobin) {
