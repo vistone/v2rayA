@@ -38,6 +38,10 @@ func DeleteWhich(ws []*configure.Which) (err error) {
 					}
 				}
 			}
+			// 同步调整节点池内订阅服务器成员的 Sub 下标，避免错位
+			if err = configure.AdjustPoolMembersAfterSubscriptionDelete(ind); err != nil {
+				return
+			}
 			subscriptionsIndexes = append(subscriptionsIndexes, ind)
 			bDeletedSubscription = true
 		case configure.ServerType:
@@ -56,6 +60,10 @@ func DeleteWhich(ws []*configure.Which) (err error) {
 						cs.ID--
 					}
 				}
+			}
+			// 同步调整节点池成员引用：移除指向被删服务器的成员，前移其后的下标
+			if err = configure.AdjustPoolMembersAfterServerDelete(v.ID); err != nil {
+				return
 			}
 			serversIndexes = append(serversIndexes, ind)
 			bDeletedServer = true

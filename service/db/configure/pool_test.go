@@ -153,3 +153,70 @@ func TestPoolSetGetRemove(t *testing.T) {
 		t.Fatal("GetPool(p1) should fail after removal")
 	}
 }
+
+func TestAdjustPoolMembersAfterServerDelete(t *testing.T) {
+	defer func() {
+		for i := 0; i < 3; i++ {
+			_ = RemoveServers([]int{0})
+		}
+		_ = RemovePool("p1")
+	}()
+	// 3 台服务器（下标 1、2、3）
+	for i := 0; i < 3; i++ {
+		_ = AppendServers([]*ServerRaw{{ServerObj: &ServerObjStub{}}})
+	}
+	p := &Pool{
+		Name: "p1",
+		Members: []PoolMember{
+			{Which: Which{TYPE: ServerType, ID: 1}, AgentURL: "http://127.0.0.1:19528"},
+			{Which: Which{TYPE: ServerType, ID: 2}, AgentURL: "http://127.0.0.1:19528"},
+			{Which: Which{TYPE: ServerType, ID: 3}, AgentURL: "http://127.0.0.1:19528"},
+		},
+	}
+	if err := SetPool(p); err != nil {
+		t.Fatalf("SetPool: %v", err)
+	}
+	// 删除第 2 台服务器：成员应变为 [1,2]（原 1、3），不再错位
+	if err := AdjustPoolMembersAfterServerDelete(2); err != nil {
+		t.Fatalf("AdjustPoolMembersAfterServerDelete: %v", err)
+	}
+	got, err := GetPool("p1")
+	if err != nil {
+		t.Fatalf("GetPool: %v", err)
+	}
+	if len(got.Members) != 2 {
+		t.Fatalf("members = %d, want 2", len(got.Members))
+	}
+	if got.Members[0].Which.ID != 1 || got.Members[1].Which.ID != 2 {
+		t.Fatalf("member IDs = %d,%d, want 1,2", got.Members[0].Which.ID, got.Members[1].Which.ID)
+	}
+	// 再次删除第 1 台（原第 3 台）
+	if err := AdjustPoolMembersAfterServerDelete(1); err != nil {
+		t.Fatalf("Adjust(1): %v", err)
+	}
+	got, _ = GetPool("p1")
+	if len(got.Members) != 1 || got.Members[0].Which.ID != 1 {
+		t.Fatalf("members after second delete = %+v, want single ID 1", got.Members)
+	}
+}
+
+func TestAdjustPoolMembersAfterServerDeleteRemovesEmptyPool(t *testing.T) {
+	defer func() {
+		_ = RemoveServers([]int{0})
+		_ = RemovePool("gone")
+	}()
+	_ = AppendServers([]*ServerRaw{{ServerObj: &ServerObjStub{}}})
+	p := &Pool{
+		Name:    "gone",
+		Members: []PoolMember{{Which: Which{TYPE: ServerType, ID: 1}, AgentURL: "http://127.0.0.1:19528"}},
+	}
+	if err := SetPool(p); err != nil {
+		t.Fatalf("SetPool: %v", err)
+	}
+	if err := AdjustPoolMembersAfterServerDelete(1); err != nil {
+		t.Fatalf("Adjust: %v", err)
+	}
+	if _, err := GetPool("gone"); err == nil {
+		t.Fatal("pool with no remaining members should be removed")
+	}
+}
