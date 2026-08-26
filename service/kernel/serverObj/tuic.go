@@ -59,6 +59,16 @@ func ParseTuicURL(link string) (data *Tuic, err error) {
 		alpn = "h3"
 	}
 
+	// tuic 客户端对 insecure 参数有三种拼写：allowInsecure（驼峰，geoproxy 等）、
+	// allow_insecure（下划线）、insecure（历史兼容）。全部兼容，否则自签证书节点
+	// 会被错误地要求 TLS 校验导致握手失败。
+	allowInsecure := u.Query().Get("allowInsecure")
+	if allowInsecure == "" {
+		allowInsecure = u.Query().Get("allow_insecure")
+	}
+	if allowInsecure == "" {
+		allowInsecure = u.Query().Get("insecure")
+	}
 	data = &Tuic{
 		Name:                 u.Fragment,
 		Server:               u.Hostname(),
@@ -67,7 +77,7 @@ func ParseTuicURL(link string) (data *Tuic, err error) {
 		Password:             u.User.String(),
 		Sni:                  u.Query().Get("sni"),
 		DisableSni:           u.Query().Get("disable_sni") == "true" || u.Query().Get("disable_sni") == "1",
-		AllowInsecure:        u.Query().Get("allow_insecure") == "true" || u.Query().Get("allow_insecure") == "1",
+		AllowInsecure:        allowInsecure == "true" || allowInsecure == "1",
 		Alpn:                 alpn,
 		CongestionControl:    u.Query().Get("congestion_control"),
 		UdpRelayMode:         u.Query().Get("udp_relay_mode"),
