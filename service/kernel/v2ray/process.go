@@ -42,7 +42,7 @@ type Process struct {
 
 func NewProcess(tmpl *Template,
 	prestart func() error, poststart func() error,
-	postUnexpectedStop func(p *Process),
+	postUnexpectedStop func(p *Process, crashed bool),
 ) (*Process, error) {
 	process := &Process{
 		template: tmpl,
@@ -112,19 +112,28 @@ func NewProcess(tmpl *Template,
 			// canceled by v2rayA
 			return
 		}
-		defer postUnexpectedStop(process)
+		crashed := true
 		var t []string
 		if p != nil {
 			if p.Success() {
-				return
+				// 核心自行成功退出（典型场景：systemd 关机/停服时 SIGTERM
+				// 同时发给整个 cgroup，xray 系核心先于 v2rayA 处理并优雅退出，
+				// 早于 expectedStop 置位）。这不算崩溃：保留 running 状态，
+				// 使下次启动仍能自动恢复代理连接。
+				crashed = false
+				log.Info("v2ray-core exited cleanly on its own; preserving running state")
+			} else {
+				t = append(t, p.String())
 			}
-			t = append(t, p.String())
 		}
 		if e != nil {
 			t = append(t, e.Error())
 		}
-		log.Warn("v2ray-core: %v", strings.Join(t, ": "))
-		unexpectedExiting = true
+		if crashed {
+			log.Warn("v2ray-core: %v", strings.Join(t, ": "))
+			unexpectedExiting = true
+		}
+		postUnexpectedStop(process, crashed)
 	}()
 	// ports to check
 	portList := []string{strconv.Itoa(tmpl.ApiPort)}

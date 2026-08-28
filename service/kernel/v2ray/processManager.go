@@ -232,16 +232,23 @@ func (m *CoreProcessManager) stop(saveRunning bool) {
 	ApiFeed.ProductMessage("running_state", map[string]interface{}{"running": false, "networkPaused": false})
 }
 
-func (m *CoreProcessManager) handleUnexpectedStop(p *Process) {
+func (m *CoreProcessManager) handleUnexpectedStop(p *Process, crashed bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.p != p {
 		return
 	}
-	m.stop(true)
-	// Override the default status (Stop() would have saved "running" or "stopped")
-	// to record the abnormal exit so the startup code can warn the user.
-	_ = configure.SetLastKernelExitStatus(configure.LastKernelExitCrashed)
+	if crashed {
+		// 真实异常退出：清 running 标记并记录 crashed，下次启动不自动恢复，
+		// 给用户排查机会。
+		m.stop(true)
+		_ = configure.SetLastKernelExitStatus(configure.LastKernelExitCrashed)
+		return
+	}
+	// 核心自行成功退出（如关机时核心先优雅退出）：按外部停止处理，
+	// 保留 running 状态，下次启动自动恢复代理。
+	m.stop(false)
+	_ = configure.SetLastKernelExitStatus(configure.LastKernelExitRunning)
 }
 
 // runPreStartHook executes the configured core pre-start hook.
